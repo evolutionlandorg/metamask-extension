@@ -16,7 +16,11 @@ const {
 } = require('../send.constants')
 
 const stubs = {
-  addCurrencies: sinon.stub().callsFake((a, b, obj) => a + b),
+  addCurrencies: sinon.stub().callsFake((a, b, obj) => {
+    if (String(a).match(/^0x.+/)) a = Number(String(a).slice(2))
+    if (String(b).match(/^0x.+/)) b = Number(String(b).slice(2))
+    return a + b
+  }),
   conversionUtil: sinon.stub().callsFake((val, obj) => parseInt(val, 16)),
   conversionGTE: sinon.stub().callsFake((obj1, obj2) => obj1.value >= obj2.value),
   multiplyCurrencies: sinon.stub().callsFake((a, b) => `${a}x${b}`),
@@ -48,6 +52,7 @@ const {
   estimateGasPriceFromRecentBlocks,
   generateTokenTransferData,
   getAmountErrorObject,
+  getGasFeeErrorObject,
   getToAddressForGasUpdate,
   calcTokenBalance,
   isBalanceSufficient,
@@ -142,6 +147,18 @@ describe('send utils', () => {
         primaryCurrency: 'ABC',
         expectedResult: { amount: INSUFFICIENT_FUNDS_ERROR },
       },
+      'should not return insufficientFunds error if selectedToken is truthy': {
+        amount: '0x0',
+        amountConversionRate: 2,
+        balance: 1,
+        conversionRate: 3,
+        gasTotal: 17,
+        primaryCurrency: 'ABC',
+        selectedToken: { symbole: 'DEF', decimals: 0 },
+        decimals: 0,
+        tokenBalance: 'sometokenbalance',
+        expectedResult: { amount: null },
+      },
       'should return insufficientTokens error if token is selected and isTokenBalanceSufficient returns false': {
         amount: '0x10',
         amountConversionRate: 2,
@@ -158,6 +175,32 @@ describe('send utils', () => {
     Object.entries(config).map(([description, obj]) => {
       it(description, () => {
         assert.deepEqual(getAmountErrorObject(obj), obj.expectedResult)
+      })
+    })
+  })
+
+  describe('getGasFeeErrorObject()', () => {
+    const config = {
+      'should return insufficientFunds error if isBalanceSufficient returns false': {
+        amountConversionRate: 2,
+        balance: 16,
+        conversionRate: 3,
+        gasTotal: 17,
+        primaryCurrency: 'ABC',
+        expectedResult: { gasFee: INSUFFICIENT_FUNDS_ERROR },
+      },
+      'should return null error if isBalanceSufficient returns true': {
+        amountConversionRate: 2,
+        balance: 16,
+        conversionRate: 3,
+        gasTotal: 15,
+        primaryCurrency: 'ABC',
+        expectedResult: { gasFee: null },
+      },
+    }
+    Object.entries(config).map(([description, obj]) => {
+      it(description, () => {
+        assert.deepEqual(getGasFeeErrorObject(obj), obj.expectedResult)
       })
     })
   })
@@ -221,6 +264,7 @@ describe('send utils', () => {
   describe('isTokenBalanceSufficient()', () => {
     it('should correctly call conversionUtil and return the result of calling conversionGTE', () => {
       stubs.conversionGTE.resetHistory()
+      stubs.conversionUtil.resetHistory()
       const result = isTokenBalanceSufficient({
         amount: '0x10',
         tokenBalance: 123,

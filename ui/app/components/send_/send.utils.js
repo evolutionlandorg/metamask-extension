@@ -29,6 +29,7 @@ module.exports = {
   estimateGasPriceFromRecentBlocks,
   generateTokenTransferData,
   getAmountErrorObject,
+  getGasFeeErrorObject,
   getToAddressForGasUpdate,
   isBalanceSufficient,
   isTokenBalanceSufficient,
@@ -108,9 +109,9 @@ function getAmountErrorObject ({
   tokenBalance,
 }) {
   let insufficientFunds = false
-  if (gasTotal && conversionRate) {
+  if (gasTotal && conversionRate && !selectedToken) {
     insufficientFunds = !isBalanceSufficient({
-      amount: selectedToken ? '0x0' : amount,
+      amount,
       amountConversionRate,
       balance,
       conversionRate,
@@ -145,6 +146,37 @@ function getAmountErrorObject ({
   }
 
   return { amount: amountError }
+}
+
+function getGasFeeErrorObject ({
+  amount,
+  amountConversionRate,
+  balance,
+  conversionRate,
+  gasTotal,
+  primaryCurrency,
+  selectedToken,
+  tokenBalance,
+}) {
+  let insufficientFunds = false
+  if (gasTotal && conversionRate) {
+    insufficientFunds = !isBalanceSufficient({
+      amount: '0x0',
+      amountConversionRate,
+      balance,
+      conversionRate,
+      gasTotal,
+      primaryCurrency,
+    })
+  }
+
+  let gasFeeError = null
+
+  if (insufficientFunds) {
+    gasFeeError = INSUFFICIENT_FUNDS_ERROR
+  }
+
+  return { gasFee: gasFeeError }
 }
 
 function calcTokenBalance ({ selectedToken, usersToken }) {
