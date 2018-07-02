@@ -76,7 +76,6 @@ const controller = new MetamaskController({
   showUnconfirmedMessage: noop,
   unlockAccountMessage: noop,
   showUnapprovedTx: noop,
-  platform: {},
   // initial state
   initState: firstTimeState,
 })
